@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>90 分钟专注计时器</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --panel: rgba(255,255,255,0.08);
+      --panel2: rgba(255,255,255,0.06);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.72);
+      --ok: rgba(120, 255, 190, 0.18);
+      --warn: rgba(255, 220, 120, 0.18);
+      --danger: rgba(255, 120, 140, 0.18);
+      --border: rgba(255,255,255,0.12);
+      --shadow: 0 12px 40px rgba(0,0,0,0.35);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    html, body {
+      height: 100%;
+      background: radial-gradient(1200px 800px at 30% 20%, rgba(120,180,255,0.16), transparent 55%),
+                  radial-gradient(900px 700px at 80% 70%, rgba(255,160,200,0.12), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      margin: 0;
+      font-family: var(--sans);
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 18px 44px;
+      box-sizing: border-box;
+    }
+    .top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      letter-spacing: 0.3px;
+      font-weight: 700;
+    }
+    .sub {
+      font-size: 13px;
+      margin-top: 6px;
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 56ch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      overflow: hidden;
+    }
+    .timer {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 270px;
+      position: relative;
+    }
+    .timer .big {
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 64px;
+      letter-spacing: 0.5px;
+      line-height: 1;
+      margin-top: 6px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1;
+    }
+    .phaseDot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+    }
+    .progress {
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+    }
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(120,180,255,0.95), rgba(255,160,200,0.95));
+      border-radius: 999px;
+      transition: width 120ms linear;
+    }
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 90ms ease, background 120ms ease;
+      user-select: none;
+    }
+    button:hover { background: rgba(255,255,255,0.10); }
+    button:active { transform: translateY(1px); }
+    button.primary {
+      background: rgba(120,180,255,0.22);
+      border-color: rgba(120,180,255,0.38);
+    }
+    button.danger {
+      background: rgba(255,120,140,0.18);
+      border-color: rgba(255,120,140,0.32);
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .settings h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: 0.2px;
+    }
+    .form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    @media (max-width: 520px) {
+      .form { grid-template-columns: 1fr; }
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input[type="number"], input[type="range"] {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input[type="number"]{
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 10px;
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="number"]:focus { border-color: rgba(120,180,255,0.55); }
+    .help {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .note {
+      margin-top: 12px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .banner {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 180ms ease;
+    }
+    .banner.work { background: var(--ok); }
+    .banner.break { background: var(--warn); }
+    .banner.done { background: var(--danger); }
+    .banner.show { opacity: 1; }
+
+    .kvs {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 12px;
+      margin-top: 6px;
+      align-items: baseline;
+    }
+    .kvs .k { color: var(--muted); font-size: 12px; }
+    .kvs .v { font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.86); }
+
+    .footer {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .sr {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>90 分钟倒计时 + 3–5 分钟铃声循环</h1>
+        <div class="sub">点“开始”后，系统会在每个工作阶段结束时播放柔和铃声提示休息，然后 15 秒后播放“钉”一下提醒继续干活儿。如此往复，直到 90 分钟结束。</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card timer" id="timerCard">
+        <div class="banner work" id="bannerWork"></div>
+        <div class="banner break" id="bannerBreak"></div>
+        <div class="banner done" id="bannerDone"></div>
+
+        <div class="row">
+          <div class="pill" id="phasePill">
+            <span class="phaseDot" id="phaseDot"></span>
+            <span id="phaseText">未开始</span>
+          </div>
+          <div class="pill" id="audioPill">
+            <span id="audioText">声音：未解锁</span>
+          </div>
+        </div>
+
+        <div class="big" id="bigTime">90:00</div>
+
+        <div class="progress" aria-label="总进度">
+          <div class="bar" id="progressBar"></div>
+        </div>
+
+        <div class="kvs">
+          <div class="k">下一次提醒</div><div class="v" id="nextCue">--:--</div>
+          <div class="k">总剩余</div><div class="v" id="totalLeft">90:00</div>
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="btnStart">开始</button>
+          <button id="btnPause" disabled>暂停</button>
+          <button class="danger" id="btnReset">重置</button>
+          <button id="btnSoft" title="播放柔和铃声">测试休息铃声</button>
+          <button id="btnDing" title="播放钉一下">测试继续铃声</button>
+        </div>
+
+        <div class="footer" id="statusLine">提示：浏览器通常要求先点击按钮才能播放声音。开始一次后就会自动按节奏提醒。</div>
+      </div>
+
+      <div class="card settings">
+        <h2>设置</h2>
+        <div class="form">
+          <div>
+            <label for="minMin">工作间隔下限（分钟）</label>
+            <input id="minMin" type="number" min="0.5" step="0.5" value="3" />
+          </div>
+          <div>
+            <label for="maxMin">工作间隔上限（分钟）</label>
+            <input id="maxMin" type="number" min="0.5" step="0.5" value="5" />
+          </div>
+          <div>
+            <label for="breakSec">休息时长（秒）</label>
+            <input id="breakSec" type="number" min="1" step="1" value="15" />
+          </div>
+          <div>
+            <label for="volume">音量</label>
+            <input id="volume" type="range" min="0" max="1" step="0.01" value="0.55" />
+          </div>
+        </div>
+
+        <div class="note">
+          建议把这个文件保存到本地，再双击打开。为了避免电脑休眠导致计时不准，你可以把系统的睡眠时间调长一些。如果浏览器支持屏幕常亮，会在开始后自动尝试开启。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      "use strict";
+
+      const TOTAL_MS_DEFAULT = 90 * 60 * 1000;
+
+      // UI
+      const bigTime = document.getElementById("bigTime");
+      const progressBar = document.getElementById("progressBar");
+      const phaseText = document.getElementById("phaseText");
+      const phaseDot = document.getElementById("phaseDot");
+      const audioText = document.getElementById("audioText");
+      const statusLine = document.getElementById("statusLine");
+      const nextCue = document.getElementById("nextCue");
+      const totalLeft = document.getElementById("totalLeft");
+
+      const btnStart = document.getElementById("btnStart");
+      const btnPause = document.getElementById("btnPause");
+      const btnReset = document.getElementById("btnReset");
+      const btnSoft = document.getElementById("btnSoft");
+      const btnDing = document.getElementById("btnDing");
+
+      const minMin = document.getElementById("minMin");
+      const maxMin = document.getElementById("maxMin");
+      const breakSec = document.getElementById("breakSec");
+      const volume = document.getElementById("volume");
+
+      const bannerWork = document.getElementById("bannerWork");
+      const bannerBreak = document.getElementById("bannerBreak");
+      const bannerDone = document.getElementById("bannerDone");
+
+      // State
+      let running = false;
+      let startedOnce = false;
+      let totalMsLeft = TOTAL_MS_DEFAULT;
+
+      let phase = "idle"; // idle | work | break | done
+      let phaseMsLeft = 0;
+
+      let rafId = null;
+      let lastTs = null;
+
+      // Audio
+      let audioCtx = null;
+      let masterGain = null;
+
+      // Wake lock
+      let wakeLock = null;
+
+      function clamp(n, a, b){ return Math.min(b, Math.max(a, n)); }
+
+      function pad2(n){ return String(n).padStart(2, "0"); }
+
+      function formatMs(ms){
+        ms = Math.max(0, ms);
+        const totalSec = Math.ceil(ms / 1000);
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
+        return `${pad2(m)}:${pad2(s)}`;
+      }
+
+      function readSettings(){
+        let minV = parseFloat(minMin.value);
+        let maxV = parseFloat(maxMin.value);
+        if (!isFinite(minV)) minV = 3;
+        if (!isFinite(maxV)) maxV = 5;
+        minV = clamp(minV, 0.1, 120);
+        maxV = clamp(maxV, 0.1, 120);
+        if (minV > maxV) { const t = minV; minV = maxV; maxV = t; }
+
+        let br = parseInt(breakSec.value, 10);
+        if (!isFinite(br)) br = 15;
+        br = clamp(br, 1, 600);
+
+        let vol = parseFloat(volume.value);
+        if (!isFinite(vol)) vol = 0.55;
+        vol = clamp(vol, 0, 1);
+
+        return { minV, maxV, br, vol };
+      }
+
+      function randomWorkMs(){
+        const { minV, maxV } = readSettings();
+        const minMs = minV * 60 * 1000;
+        const maxMs = maxV * 60 * 1000;
+        const r = minMs + Math.random() * (maxMs - minMs);
+        return Math.round(r);
+      }
+
+      function setBanner(state){
+        bannerWork.classList.remove("show");
+        bannerBreak.classList.remove("show");
+        bannerDone.classList.remove("show");
+        if (state === "work") bannerWork.classList.add("show");
+        if (state === "break") bannerBreak.classList.add("show");
+        if (state === "done") bannerDone.classList.add("show");
+      }
+
+      function setPhaseUI(state){
+        if (state === "idle"){
+          phaseText.textContent = "未开始";
+          phaseDot.style.background = "rgba(255,255,255,0.35)";
+          setBanner("");
+          return;
+        }
+        if (state === "work"){
+          phaseText.textContent = "工作中";
+          phaseDot.style.background = "rgba(120,255,190,0.78)";
+          setBanner("work");
+          return;
+        }
+        if (state === "break"){
+          phaseText.textContent = "休息中";
+          phaseDot.style.background = "rgba(255,220,120,0.85)";
+          setBanner("break");
+          return;
+        }
+        if (state === "done"){
+          phaseText.textContent = "已结束";
+          phaseDot.style.background = "rgba(255,120,140,0.85)";
+          setBanner("done");
+          return;
+        }
+      }
+
+      function updateUI(){
+        bigTime.textContent = formatMs(totalMsLeft);
+        totalLeft.textContent = formatMs(totalMsLeft);
+
+        const pct = clamp(1 - (totalMsLeft / TOTAL_MS_DEFAULT), 0, 1) * 100;
+        progressBar.style.width = pct.toFixed(3) + "%";
+
+        if (phase === "idle"){
+          nextCue.textContent = "--:--";
+        } else if (phase === "done"){
+          nextCue.textContent = "--:--";
+        } else {
+          nextCue.textContent = formatMs(phaseMsLeft);
+        }
+      }
+
+      function setButtons(){
+        btnStart.disabled = running;
+        btnPause.disabled = !running;
+      }
+
+      function ensureAudio(){
+        if (audioCtx) return true;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) {
+          audioText.textContent = "声音：浏览器不支持";
+          return false;
+        }
+        audioCtx = new AC();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = readSettings().vol;
+        masterGain.connect(audioCtx.destination);
+        audioText.textContent = "声音：已就绪";
+        return true;
+      }
+
+      async function unlockAudio(){
+        if (!ensureAudio()) return false;
+        try {
+          if (audioCtx.state === "suspended") await audioCtx.resume();
+          audioText.textContent = "声音：已解锁";
+          return true;
+        } catch (e){
+          audioText.textContent = "声音：解锁失败";
+          return false;
+        }
+      }
+
+      function setVolumeFromUI(){
+        if (!masterGain) return;
+        masterGain.gain.value = readSettings().vol;
+      }
+
+      function playTone({ freq=880, type="sine", start=0, attack=0.01, decay=0.6, sustain=0.0, release=0.25, peak=0.6 }){
+        if (!audioCtx || !masterGain) return;
+        const t0 = audioCtx.currentTime + start;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t0);
+
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(peak, t0 + attack);
+        const tSustainStart = t0 + attack + decay;
+        const sustainLevel = Math.max(0.0001, peak * sustain);
+        gain.gain.exponentialRampToValueAtTime(sustainLevel, tSustainStart);
+        gain.gain.exponentialRampToValueAtTime(0.0001, tSustainStart + release);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+
+        osc.start(t0);
+        osc.stop(tSustainStart + release + 0.05);
+      }
+
+      function playSoftBell(){
+        // 柔和铃声：两个频率叠加，较长衰减
+        if (!audioCtx) return;
+        setVolumeFromUI();
+
+        playTone({ freq: 784, type: "sine", attack: 0.02, decay: 0.45, sustain: 0.18, release: 0.55, peak: 0.35 });
+        playTone({ freq: 1046.5, type: "sine", attack: 0.02, decay: 0.55, sustain: 0.12, release: 0.65, peak: 0.26, start: 0.01 });
+        playTone({ freq: 1568, type: "sine", attack: 0.015, decay: 0.35, sustain: 0.08, release: 0.45, peak: 0.14, start: 0.02 });
+      }
+
+      function playDing(){
+        // “钉”一下：更短、更清脆
+        if (!audioCtx) return;
+        setVolumeFromUI();
+
+        playTone({ freq: 1760, type: "triangle", attack: 0.005, decay: 0.10, sustain: 0.0, release: 0.14, peak: 0.45 });
+        playTone({ freq: 3520, type: "sine", attack: 0.003, decay: 0.06, sustain: 0.0, release: 0.10, peak: 0.18, start: 0.006 });
+      }
+
+      function playFinish(){
+        if (!audioCtx) return;
+        setVolumeFromUI();
+        playTone({ freq: 523.25, type: "sine", attack: 0.01, decay: 0.12, sustain: 0.0, release: 0.20, peak: 0.30 });
+        playTone({ freq: 659.25, type: "sine", attack: 0.01, decay: 0.18, sustain: 0.0, release: 0.24, peak: 0.26, start: 0.07 });
+        playTone({ freq: 783.99, type: "sine", attack: 0.01, decay: 0.22, sustain: 0.0, release: 0.28, peak: 0.22, start: 0.14 });
+      }
+
+      async function requestWakeLock(){
+        try {
+          if (!("wakeLock" in navigator)) return;
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => {
+            // no-op
+          });
+        } catch (e){
+          // ignore
+        }
+      }
+
+      function releaseWakeLock(){
+        try { if (wakeLock) wakeLock.release(); } catch (e) {}
+        wakeLock = null;
+      }
+
+      function initSession(){
+        totalMsLeft = TOTAL_MS_DEFAULT;
+        phase = "work";
+        phaseMsLeft = randomWorkMs();
+        setPhaseUI(phase);
+        updateUI();
+        statusLine.textContent = "已就绪：工作阶段开始计时，到点会提示你休息，然后 15 秒后提示继续。";
+      }
+
+      function endSession(){
+        running = false;
+        phase = "done";
+        phaseMsLeft = 0;
+        totalMsLeft = 0;
+        setPhaseUI("done");
+        updateUI();
+        setButtons();
+        statusLine.textContent = "90 分钟结束。";
+        playFinish();
+        releaseWakeLock();
+      }
+
+      function tick(ts){
+        if (!running){
+          rafId = null;
+          return;
+        }
+        if (lastTs == null) lastTs = ts;
+        const rawDelta = ts - lastTs;
+        lastTs = ts;
+
+        // Only spend time while we still have time left.
+        const activeDelta = Math.min(rawDelta, totalMsLeft);
+        totalMsLeft -= activeDelta;
+
+        let remainingDelta = activeDelta;
+
+        // Advance phases; avoid triggering extra cues after end.
+        while (remainingDelta > 0 && totalMsLeft > 0){
+          const step = Math.min(remainingDelta, phaseMsLeft);
+          phaseMsLeft -= step;
+          remainingDelta -= step;
+
+          if (phaseMsLeft <= 0){
+            if (phase === "work"){
+              // Work ended -> rest cue
+              playSoftBell();
+              phase = "break";
+              phaseMsLeft = readSettings().br * 1000;
+              setPhaseUI("break");
+              statusLine.textContent = "休息一下。铃声后 " + readSettings().br + " 秒会“钉”一下提醒继续。";
+            } else if (phase === "break"){
+              // Break ended -> back to work
+              playDing();
+              phase = "work";
+              phaseMsLeft = randomWorkMs();
+              setPhaseUI("work");
+              statusLine.textContent = "继续干活儿。下一次休息提醒会在 3–5 分钟之间随机出现。";
+            } else {
+              // idle/done shouldn't be here
+              break;
+            }
+          }
+        }
+
+        if (totalMsLeft <= 0){
+          endSession();
+          return;
+        }
+
+        updateUI();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      async function start(){
+        // Ensure audio is unlocked on user gesture.
+        const ok = await unlockAudio();
+        if (!ok){
+          statusLine.textContent = "声音未能解锁：你仍可使用计时，但铃声可能无法自动播放。";
+        }
+        await requestWakeLock();
+
+        if (!startedOnce){
+          initSession();
+          startedOnce = true;
+        } else if (phase === "idle"){
+          initSession();
+        } else if (phase === "done"){
+          initSession();
+        }
+
+        running = true;
+        setButtons();
+        statusLine.textContent = (phase === "break") ? "休息中。结束会自动提醒继续。" : "计时中。";
+        lastTs = null;
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function pause(){
+        running = false;
+        setButtons();
+        statusLine.textContent = "已暂停。";
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        lastTs = null;
+        releaseWakeLock();
+      }
+
+      function reset(){
+        pause();
+        startedOnce = false;
+        totalMsLeft = TOTAL_MS_DEFAULT;
+        phase = "idle";
+        phaseMsLeft = 0;
+        setPhaseUI("idle");
+        updateUI();
+        statusLine.textContent = "已重置。点“开始”即可重新启动 90 分钟倒计时。";
+      }
+
+      // Listeners
+      btnStart.addEventListener("click", start);
+      btnPause.addEventListener("click", pause);
+      btnReset.addEventListener("click", reset);
+
+      btnSoft.addEventListener("click", async () => {
+        await unlockAudio();
+        playSoftBell();
+        statusLine.textContent = "已播放：休息提示铃声。";
+      });
+
+      btnDing.addEventListener("click", async () => {
+        await unlockAudio();
+        playDing();
+        statusLine.textContent = "已播放：继续提示铃声。";
+      });
+
+      volume.addEventListener("input", () => {
+        setVolumeFromUI();
+      });
+
+      // If tab becomes visible again, try to reacquire wake lock if running.
+      document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "visible" && running){
+          await requestWakeLock();
+        }
+      });
+
+      // Init UI
+      setPhaseUI("idle");
+      updateUI();
+      setButtons();
+
+      // Guard: if user edits numbers, keep them sane
+      [minMin, maxMin, breakSec].forEach(el => {
+        el.addEventListener("change", () => {
+          const s = readSettings();
+          minMin.value = s.minV;
+          maxMin.value = s.maxV;
+          breakSec.value = s.br;
+          updateUI();
+        });
+      });
+
+    })();
+  </script>
+</body>
+</html>
