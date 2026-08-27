@@ -18,7 +18,7 @@ jobs:
       - name: Checkout build branch
         uses: actions/checkout@v4
 
-      - name: Reconstruct source project
+      - name: Reconstruct and patch source project
         shell: bash
         run: |
           set -euo pipefail
@@ -27,6 +27,32 @@ jobs:
           echo "8f925bb63ce0eb7b4449f9e967860fba079f200541730481e7247ee4fec13b2e  /tmp/ShouZheng-0.0.1-source.tar.gz" | sha256sum --check --strict
           mkdir -p project
           tar -xzf /tmp/ShouZheng-0.0.1-source.tar.gz -C project
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("project/app/build.gradle.kts")
+          text = path.read_text(encoding="utf-8")
+          old = '''    kotlinOptions {
+                  jvmTarget = "17"
+              }
+
+          '''
+          if old not in text:
+              raise SystemExit("Expected legacy kotlinOptions block was not found")
+          text = text.replace(old, "", 1)
+          marker = "\ndependencies {\n"
+          block = '''
+          kotlin {
+              compilerOptions {
+                  jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+              }
+          }
+          '''
+          if marker not in text:
+              raise SystemExit("Dependencies marker was not found")
+          text = text.replace(marker, block + marker, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
           test -f project/app/build.gradle.kts
           test -f project/app/src/main/java/com/colion/shouzheng/MainActivity.kt
 
