@@ -59,9 +59,36 @@ jobs:
           if bad_item not in theme_text:
               raise SystemExit("Expected invalid splash-screen item was not found")
           theme_path.write_text(theme_text.replace(bad_item, "", 1), encoding="utf-8")
+
+          repository_path = Path("project/app/src/main/java/com/colion/shouzheng/data/AppRepository.kt")
+          repository_text = repository_path.read_text(encoding="utf-8")
+          repository_text = repository_text.replace(
+              "fun setGoalDays(value: Int)",
+              "fun updateGoalDays(value: Int)",
+              1,
+          ).replace(
+              "fun setThemeMode(value: ThemeMode)",
+              "fun updateThemeMode(value: ThemeMode)",
+              1,
+          )
+          repository_path.write_text(repository_text, encoding="utf-8")
+
+          me_path = Path("project/app/src/main/java/com/colion/shouzheng/ui/MeScreen.kt")
+          me_text = me_path.read_text(encoding="utf-8")
+          me_text = me_text.replace(
+              "repository.setGoalDays(days)",
+              "repository.updateGoalDays(days)",
+              1,
+          ).replace(
+              "repository.setThemeMode(mode)",
+              "repository.updateThemeMode(mode)",
+              1,
+          )
+          me_path.write_text(me_text, encoding="utf-8")
           PY
           test -f project/app/build.gradle.kts
           test -f project/app/src/main/java/com/colion/shouzheng/MainActivity.kt
+          ! grep -R "repository.setGoalDays\|repository.setThemeMode" project/app/src/main/java
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
