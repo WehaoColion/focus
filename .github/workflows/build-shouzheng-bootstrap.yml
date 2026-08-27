@@ -114,9 +114,27 @@ jobs:
         working-directory: project
         run: gradle wrapper --gradle-version 8.13
 
-      - name: Run unit tests and build APK
+      - name: Run tests lint and build APK
         working-directory: project
-        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintDebug assembleDebug
+
+      - name: Verify APK identity permissions and signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="project/app/build/outputs/apk/debug/app-debug.apk"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/SIGNATURE.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee /tmp/APKINFO.txt
+          "$BUILD_TOOLS/aapt" dump permissions "$APK" | tee /tmp/PERMISSIONS.txt
+          grep -Fq "package: name='com.colion.shouzheng' versionCode='1' versionName='0.0.1'" /tmp/APKINFO.txt
+          grep -Fq "sdkVersion:'26'" /tmp/APKINFO.txt
+          grep -Fq "targetSdkVersion:'36'" /tmp/APKINFO.txt
+          grep -Fq "Verified using v2 scheme (APK Signature Scheme v2): true" /tmp/SIGNATURE.txt
+          if grep -Fq "android.permission.INTERNET" /tmp/PERMISSIONS.txt; then
+            echo "Unexpected INTERNET permission detected" >&2
+            exit 1
+          fi
 
       - name: Prepare deliverables
         shell: bash
@@ -124,19 +142,39 @@ jobs:
           set -euo pipefail
           mkdir -p dist/source
           cp project/app/build/outputs/apk/debug/app-debug.apk dist/ShouZheng-0.0.1-debug.apk
+          cp /tmp/APKINFO.txt dist/APKINFO.txt
+          cp /tmp/PERMISSIONS.txt dist/PERMISSIONS.txt
+          cp /tmp/SIGNATURE.txt dist/SIGNATURE.txt
+          cp project/app/build/reports/lint-results-debug.txt dist/LINT_REPORT.txt
           rsync -a \
             --exclude '.gradle/' \
             --exclude '.idea/' \
+            --exclude '.kotlin/' \
             --exclude 'build/' \
             --exclude 'app/build/' \
             project/ dist/source/
           (cd dist/source && zip -q -r ../ShouZheng-0.0.1-source.zip .)
           rm -rf dist/source
-          (cd dist && sha256sum ShouZheng-0.0.1-debug.apk ShouZheng-0.0.1-source.zip > SHA256SUMS.txt)
+          cat > dist/BUILD_REPORT.txt <<EOF
+          App: ShouZheng
+          Version: 0.0.1 (1)
+          Package: com.colion.shouzheng
+          Minimum SDK: 26
+          Target SDK: 36
+          Java: 17
+          Gradle: 8.13
+          Android Gradle Plugin: 8.13.2
+          Kotlin: 2.3.20
+          Checks: unit tests, Android Lint, APK ZIP integrity, package/version identity, permission audit, APK v2 signature verification
+          Workflow run: $GITHUB_RUN_ID
+          Commit: $GITHUB_SHA
+          EOF
+          (cd dist && sha256sum ShouZheng-0.0.1-debug.apk ShouZheng-0.0.1-source.zip APKINFO.txt PERMISSIONS.txt SIGNATURE.txt LINT_REPORT.txt BUILD_REPORT.txt > SHA256SUMS.txt)
           unzip -t dist/ShouZheng-0.0.1-debug.apk
+          unzip -t dist/ShouZheng-0.0.1-source.zip
           ls -lh dist
 
-      - name: Upload APK and source
+      - name: Upload APK source and verification reports
         uses: actions/upload-artifact@v4
         with:
           name: ShouZheng-0.0.1
